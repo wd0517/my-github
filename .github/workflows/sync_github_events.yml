@@ -3,6 +3,7 @@ name: Sync github events
 env:
   DB_URL: '${{ secrets.DB_URL }}'
   DB_USE_SSL: '${{ secrets.DB_USE_SSL }}'
+  DB_SSL_CA_PATH: '${{ secrets.DB_SSL_CA_PATH }}'
   MY_GITHUB_USERNAME: '${{ secrets.MY_GITHUB_USERNAME }}'
   MY_GITHUB_TOKEN: '${{ secrets.MY_GITHUB_TOKEN }}'
 
