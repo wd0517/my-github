@@ -80,7 +80,7 @@ def run_migrations_online() -> None:
             'ssl': {
                 'ca': '/etc/ssl/cert.pem'
             }
-        }
+        } if env.bool('DB_USE_SSL', True) else {}
     )
 
     with connectable.connect() as connection:
