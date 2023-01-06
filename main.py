@@ -52,7 +52,7 @@ def main():
     )
 
     oldest_event = session.query(GitHubEvent).order_by(GitHubEvent.created_at.asc()).first()
-    logging.debug(f'Oldest event: { oldest_event.created_at }')
+    logging.debug(f'Oldest event: { oldest_event.created_at if oldest_event else None }')
 
     page = 1
 
