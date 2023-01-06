@@ -15,6 +15,7 @@ DEBUG = env.bool('DEBUG', False)
 session = create_session(
     env.str('DB_URL'),
     use_ssl=env.bool('DB_USE_SSL', True),
+    ssl_ca_path=env.str('DB_SSL_CA_PATH', '/etc/ssl/cert.pem'),
 )
 api = GitHubAPI(env.str('MY_GITHUB_USERNAME'), env.str('MY_GITHUB_TOKEN'))
 
