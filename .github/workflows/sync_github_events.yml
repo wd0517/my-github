@@ -1,0 +1,23 @@
+name: Sync github events
+
+on:
+  schedule:
+    - cron: '11 */2 * * *'
+  
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - run: pip install -r requirements.txt
+
+    - name: Sync github events
+      run: python main.py
