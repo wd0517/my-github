@@ -16,7 +16,7 @@ session = create_session(
     env.str('DB_URL'),
     use_ssl=env.bool('DB_USE_SSL', True),
 )
-api = GitHubAPI(env.str('GITHUB_USERNAME'), env.str('GITHUB_TOKEN'))
+api = GitHubAPI(env.str('MY_GITHUB_USERNAME'), env.str('MY_GITHUB_TOKEN'))
 
 
 def datetime_from_github_time(time_str):

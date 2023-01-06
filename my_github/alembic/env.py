@@ -1,10 +1,14 @@
+import environs
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy import pool
 
 from alembic import context
-from models import Base
+from my_github.models import Base
+
+env = environs.Env()
+env.read_env()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -58,13 +62,23 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
+    # connectable = engine_from_config(
+    #     config.get_section(config.config_ini_section),
+    #     prefix="sqlalchemy.",
+    #     poolclass=pool.NullPool,
+    #     connect_args={
+    #         "ssl": {
+    #             "ca": "/etc/ssl/cert.pem"
+    #         }
+    #     }
+    # )
+    connectable = create_engine(
+        env.str('DB_URL'),
         poolclass=pool.NullPool,
+        _coerce_config=True,
         connect_args={
-            "ssl": {
-                "ca": "/etc/ssl/cert.pem"
+            'ssl': {
+                'ca': '/etc/ssl/cert.pem'
             }
         }
     )
