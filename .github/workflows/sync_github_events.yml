@@ -27,4 +27,4 @@ jobs:
     - run: pip install -r requirements.txt
 
     - name: Sync github events
-      run: python main.py --sync-user-created-events --sync-user-received-events
+      run: python main.py --sync-user-created-events --sync-user-received-events --sync-user-stats

@@ -1,6 +1,7 @@
 import enum
+from datetime import datetime
 
-from sqlalchemy import Column, String, DateTime, JSON, Boolean, BigInteger, Enum
+from sqlalchemy import Column, String, DateTime, JSON, Boolean, BigInteger, Integer
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -27,4 +28,44 @@ class GitHubEvent(Base):
     org_id = Column(BigInteger, nullable=True)
     org_login = Column(String(255), nullable=True)
     event_source = Column(String(16), nullable=False, default=EventSourceEnum.USER_CREATED)
+    created_at = Column(DateTime, nullable=True)
+
+
+class GitHubRepo(Base):
+    __tablename__ = 'github_repos'
+
+    id = Column(BigInteger, primary_key=True)
+    node_id = Column(String(255), nullable=True)
+    name = Column(String(255), nullable=True)
+    full_name = Column(String(255), nullable=True)
+    language = Column(JSON, default=list, nullable=True)
+
+
+class GitHubUserStats(Base):
+    __tablename__ = 'github_user_stats'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, nullable=True)
+    user_login = Column(String(255), nullable=True)
+    follower_count = Column(Integer, nullable=True)
+    following_count = Column(Integer, nullable=True)
+    starred_count = Column(
+        Integer, nullable=True, doc='Number of repositories starred by the user')
+    repo_count = Column(
+        Integer, nullable=True, doc='Total number of public and private repositories')
+    public_repo_count = Column(Integer, nullable=True)
+    public_gist_count = Column(Integer, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=datetime.utcnow)
+
+
+class GitHubUserDynamicStats(Base):
+    __tablename__ = 'github_user_dynamic_stats'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, nullable=True)
+    user_login = Column(String(255), nullable=True)
+    dimension = Column(String(255), nullable=True)
+    int_value = Column(Integer, nullable=True)
+    str_value = Column(String(255), nullable=True)
+    json_value = Column(JSON, default=list, nullable=True)
     created_at = Column(DateTime, nullable=True)

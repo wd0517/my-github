@@ -4,8 +4,14 @@ import argparse
 import environs
 
 from my_github.db_session import create_session
-from my_github.models import GitHubEvent, EventSourceEnum
-from my_github.github_api import GitHubAPI, datetime_from_github_time
+from my_github.models import (
+    GitHubEvent, EventSourceEnum, GitHubUserStats,
+    GitHubUserDynamicStats
+)
+from my_github.github_api import GitHubRestAPI, GitHubGraphQLAPI, datetime_from_github_time
+
+logger = logging.getLogger(__name__)
+
 
 env = environs.Env()
 env.read_env(recurse=False)
@@ -18,13 +24,18 @@ session = create_session(
     use_ssl=env.bool('DB_USE_SSL', True),
     ssl_ca_path=env.str('DB_SSL_CA_PATH', '/etc/ssl/cert.pem'),
 )
-api = GitHubAPI(env.str('MY_GITHUB_USERNAME'), env.str('MY_GITHUB_TOKEN'))
+github_login = {
+    'username': env.str('MY_GITHUB_USERNAME'),
+    'token': env.str('MY_GITHUB_TOKEN')
+}
+rest_api = GitHubRestAPI(**github_login)
+graphql_api = GitHubGraphQLAPI(**github_login)
 
 
 def save_github_events(event_source, raw_events):
     if not raw_events:
         return
-    logging.debug(f'saving github events, count: { len(raw_events) }')
+    logger.debug(f'saving github events')
     for e in raw_events:
         session.merge(GitHubEvent(
             id=e['id'],
@@ -46,12 +57,12 @@ def save_github_events(event_source, raw_events):
 def _sync_github_events(event_source, github_api_method):
     oldest_event = session.query(GitHubEvent).where(
         GitHubEvent.event_source == event_source).order_by(GitHubEvent.created_at.asc()).first()
-    logging.debug(f'Oldest event: { oldest_event.created_at if oldest_event else None }')
+    logger.debug(f'Oldest event: { oldest_event.created_at if oldest_event else None }')
 
     page = 1
 
     if not oldest_event:
-        logging.info('No events in the database(should be first call), start to fetch all events...')
+        logger.info('No events in the database(should be first call), start to fetch all events...')
         while True:
             raw_events = github_api_method(page=page)
             if not raw_events:
@@ -74,25 +85,70 @@ def _sync_github_events(event_source, github_api_method):
             # There are more events
             page += 1
         else:
-            logging.debug(f'there are no more events, latest_event: { latest_event.created_at }')
+            logger.debug(f'there are no more events, latest_event: { latest_event.created_at }')
             break
-    logging.info(f'🎉 Syncing events ({ event_source }) done! 🎉')
+
+
+def _sync_user_stats():
+    data = graphql_api.get_user_stats()
+    user_id = data['databaseId']
+    user_login = data['login']
+    session.add(GitHubUserStats(
+        user_id=user_id,
+        user_login=user_login,
+        follower_count=data['followers']['totalCount'],
+        following_count=data['following']['totalCount'],
+        starred_count=data['starredRepositories']['totalCount'],
+        repo_count=data['repos']['totalCount'],
+        public_repo_count=data['publicRepos']['totalCount'],
+        public_gist_count=data['publicGists']['totalCount'],
+    ))
+    session.commit()
+
+    data = rest_api.get_github_action_usage()
+    session.add(GitHubUserDynamicStats(
+        user_id=user_id,
+        user_login=user_login,
+        dimension='total_minutes_used',
+        int_value=data['total_minutes_used']
+    ))
+    session.add(GitHubUserDynamicStats(
+        user_id=user_id,
+        user_login=user_login,
+        dimension='total_paid_minutes_used',
+        int_value=data['total_paid_minutes_used']
+    ))
+    session.add(GitHubUserDynamicStats(
+        user_id=user_id,
+        user_login=user_login,
+        dimension='minutes_used_breakdown',
+        json_value=data['minutes_used_breakdown']
+    ))
+    session.commit()
 
 
 def sync_user_created_events():
-    logging.info('🚀 Syncing user created events...')
+    logger.info('🚀 Syncing user created events...')
     _sync_github_events(
         EventSourceEnum.USER_CREATED.value,
-        api.get_authenticated_user_created_events,
+        rest_api.get_authenticated_user_created_events,
     )
+    logger.info(f'🎉 Syncing user created events done! 🎉')
 
 
 def sync_user_received_events():
-    logging.info('🚀 Syncing user received events...')
+    logger.info('🚀 Syncing user received events...')
     _sync_github_events(
         EventSourceEnum.USER_RECEIVED.value,
-        api.get_authenticated_user_received_events,
+        rest_api.get_authenticated_user_received_events,
     )
+    logger.info(f'🎉 Syncing user received events done! 🎉')
+
+
+def sycn_user_stats():
+    logger.info('🚀 Syncing user stats...')
+    _sync_user_stats()
+    logger.info('🎉 Syncing user stats done! 🎉')
 
 
 def main():
@@ -104,6 +160,7 @@ def main():
     parser = argparse.ArgumentParser(prog='my_github events sync tools')
     parser.add_argument('--sync-user-created-events', action='store_true')
     parser.add_argument('--sync-user-received-events', action='store_true')
+    parser.add_argument('--sync-user-stats', action='store_true')
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     args = parser.parse_args()
 
@@ -113,6 +170,9 @@ def main():
     if args.sync_user_received_events:
         sync_user_received_events()
 
+    if args.sync_user_stats:
+        sycn_user_stats()
+
+
 if __name__ == '__main__':
     main()
-        
