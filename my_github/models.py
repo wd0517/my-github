@@ -27,6 +27,15 @@ class GitHubEvent(Base):
     public = Column(Boolean, default=False, nullable=True)
     org_id = Column(BigInteger, nullable=True)
     org_login = Column(String(255), nullable=True)
+    action = Column(String(255), nullable=True)
+    additions = Column(Integer, nullable=True)
+    deletions = Column(Integer, nullable=True)
+    changed_files = Column(Integer, nullable=True)
+    pr_number = Column(
+        String(255), nullable=True,
+        doc='In PullRequestEvent, this is the pull request number; '
+        'In PushEvent, it also may not null if the push is a merge.'
+    )
     event_source = Column(String(16), nullable=False, default=EventSourceEnum.USER_CREATED)
     created_at = Column(DateTime, nullable=True)
 
@@ -50,9 +59,11 @@ class GitHubUserStats(Base):
     follower_count = Column(Integer, nullable=True)
     following_count = Column(Integer, nullable=True)
     starred_count = Column(
-        Integer, nullable=True, doc='Number of repositories starred by the user')
+        Integer, nullable=True, doc='Number of repositories starred by the user'
+    )
     repo_count = Column(
-        Integer, nullable=True, doc='Total number of public and private repositories')
+        Integer, nullable=True, doc='Total number of public and private repositories'
+    )
     public_repo_count = Column(Integer, nullable=True)
     public_gist_count = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=True, default=datetime.utcnow)
@@ -68,4 +79,4 @@ class GitHubUserDynamicStats(Base):
     int_value = Column(Integer, nullable=True)
     str_value = Column(String(255), nullable=True)
     json_value = Column(JSON, default=list, nullable=True)
-    created_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=True,  default=datetime.utcnow)
