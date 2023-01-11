@@ -89,44 +89,6 @@ def _sync_github_events(event_source, github_api_method):
             break
 
 
-def _sync_user_stats():
-    data = graphql_api.get_user_stats()
-    user_id = data['databaseId']
-    user_login = data['login']
-    session.add(GitHubUserStats(
-        user_id=user_id,
-        user_login=user_login,
-        follower_count=data['followers']['totalCount'],
-        following_count=data['following']['totalCount'],
-        starred_count=data['starredRepositories']['totalCount'],
-        repo_count=data['repos']['totalCount'],
-        public_repo_count=data['publicRepos']['totalCount'],
-        public_gist_count=data['publicGists']['totalCount'],
-    ))
-    session.commit()
-
-    data = rest_api.get_github_action_usage()
-    session.add(GitHubUserDynamicStats(
-        user_id=user_id,
-        user_login=user_login,
-        dimension='total_minutes_used',
-        int_value=data['total_minutes_used']
-    ))
-    session.add(GitHubUserDynamicStats(
-        user_id=user_id,
-        user_login=user_login,
-        dimension='total_paid_minutes_used',
-        int_value=data['total_paid_minutes_used']
-    ))
-    session.add(GitHubUserDynamicStats(
-        user_id=user_id,
-        user_login=user_login,
-        dimension='minutes_used_breakdown',
-        json_value=data['minutes_used_breakdown']
-    ))
-    session.commit()
-
-
 def sync_user_created_events():
     logger.info('🚀 Syncing user created events...')
     _sync_github_events(
@@ -147,8 +109,40 @@ def sync_user_received_events():
 
 def sycn_user_stats():
     logger.info('🚀 Syncing user stats...')
-    _sync_user_stats()
+    data = graphql_api.get_user_stats()
+    user_id = data['databaseId']
+    user_login = data['login']
+    session.add(GitHubUserStats(
+        user_id=user_id,
+        user_login=user_login,
+        follower_count=data['followers']['totalCount'],
+        following_count=data['following']['totalCount'],
+        starred_count=data['starredRepositories']['totalCount'],
+        repo_count=data['repos']['totalCount'],
+        public_repo_count=data['publicRepos']['totalCount'],
+        public_gist_count=data['publicGists']['totalCount'],
+    ))
+    session.commit()
     logger.info('🎉 Syncing user stats done! 🎉')
+
+
+def sync_billing_stats():
+    logger.info('🚀 Syncing billing stats...')
+    data = rest_api.get_github_action_usage()
+    session.add(GitHubUserDynamicStats(
+        dimension='total_minutes_used',
+        int_value=data['total_minutes_used']
+    ))
+    session.add(GitHubUserDynamicStats(
+        dimension='total_paid_minutes_used',
+        int_value=data['total_paid_minutes_used']
+    ))
+    session.add(GitHubUserDynamicStats(
+        dimension='minutes_used_breakdown',
+        json_value=data['minutes_used_breakdown']
+    ))
+    session.commit()
+    logger.info('🎉 Syncing billing stats done! 🎉')
 
 
 def main():
@@ -161,6 +155,7 @@ def main():
     parser.add_argument('--sync-user-created-events', action='store_true')
     parser.add_argument('--sync-user-received-events', action='store_true')
     parser.add_argument('--sync-user-stats', action='store_true')
+    parser.add_argument('--sync-billing-stats', action='store_true')
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     args = parser.parse_args()
 
@@ -172,6 +167,9 @@ def main():
 
     if args.sync_user_stats:
         sycn_user_stats()
+
+    if args.sync_billing_stats:
+        sync_billing_stats()
 
 
 if __name__ == '__main__':
