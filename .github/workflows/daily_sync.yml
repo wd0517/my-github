@@ -9,7 +9,7 @@ env:
 
 on:
   schedule:
-    - cron: '11 * * * *'
+    - cron: '11 0 * * *'
   
   workflow_dispatch:
 
@@ -27,4 +27,4 @@ jobs:
     - run: pip install -r requirements.txt
 
     - name: Sync github events
-      run: python main.py --sync-user-created-events --sync-user-received-events --sync-user-stats
+      run: python main.py --sync-user-stats

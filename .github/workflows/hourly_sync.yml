@@ -1,0 +1,30 @@
+name: Sync github events
+
+env:
+  DB_URL: '${{ secrets.DB_URL }}'
+  DB_USE_SSL: '${{ secrets.DB_USE_SSL }}'
+  DB_SSL_CA_PATH: '${{ secrets.DB_SSL_CA_PATH }}'
+  MY_GITHUB_USERNAME: '${{ secrets.MY_GITHUB_USERNAME }}'
+  MY_GITHUB_TOKEN: '${{ secrets.MY_GITHUB_TOKEN }}'
+
+on:
+  schedule:
+    - cron: '11 * * * *'
+  
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - run: pip install -r requirements.txt
+
+    - name: Sync github events
+      run: python main.py --sync-user-created-events --sync-user-received-events

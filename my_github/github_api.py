@@ -116,6 +116,18 @@ class GitHubGraphQLAPI:
 
         raise GraphQLException(f'Github graphql error, status code: { response.status_code }')
 
+    def get_rate_limit(self):
+        query = """
+query {
+  rateLimit {
+    limit
+    used
+    remaining
+  }
+}
+        """
+        return self.do_request(query=query, variables=None)['data']['rateLimit']
+
     def get_user_stats(self):
         query = """
 query {
@@ -144,3 +156,78 @@ query {
 }
         """
         return self.do_request(query=query, variables=None)['data']['viewer']
+
+    def get_commits_by_node_ids(self, commits):
+        query = """
+query getCommits($ids: [ID!]!, $first: Int!) {
+  nodes(ids: $ids) {
+    ... on Commit {
+      oid
+      additions
+      deletions
+      changedFiles
+      repository {
+        id
+        name
+        owner {
+          login
+        }
+        stargazerCount
+        forkCount
+      }
+      associatedPullRequests(first: 1) {
+        nodes {
+          changedFiles
+          additions
+          deletions
+          files(first: $first) {
+            nodes {
+              path
+              additions
+              deletions
+            }
+          }
+        }
+      }
+    }
+  }
+}
+        """
+        variables = {
+            'ids': commits,
+            'first': 100
+        }
+        return self.do_request(query=query, variables=variables)
+
+    def get_commits_by_shas(self, commit_shas):
+        # commit_shas should be organized by repo as follows:
+        # {
+        #     repo_id : {
+        #         'owner': 'repo_owner',
+        #         'name': 'repo_name',
+        #         'shas': ['sha1', 'sha2', 'sha3']
+        #     }
+        # }
+        query = 'query {'
+        for repo_id, repo in commit_shas.items():
+            repo_owner = repo['owner']
+            repo_name = repo['name']
+            sub_query = ''
+            for s_index, sha in enumerate(repo['shas']):
+                sub_query += f"""
+                sha_{ s_index }: object(oid: "{ sha }") {{
+                    ... on Commit {{
+                        id
+                        additions
+                        deletions
+                        changedFilesIfAvailable
+                    }}
+                }}
+                """
+            query += f"""
+            repo_{ repo_id }: repository(owner: "{ repo_owner }", name: "{ repo_name }") {{
+                { sub_query }
+            }}
+            """
+        query += '}'
+        data = self.do_request(query=query, variables=None)

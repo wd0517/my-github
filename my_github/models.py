@@ -36,6 +36,11 @@ class GitHubEvent(Base):
         doc='In PullRequestEvent, this is the pull request number; '
         'In PushEvent, it also may not null if the push is a merge.'
     )
+    node_id = Column(
+        String(255), nullable=True,
+        doc='Is PullRequestEvent, it means the node_id of the pull request; '
+        'In PushEvent, it means the node_id of the commit, and so on.'
+    )
     event_source = Column(String(16), nullable=False, default=EventSourceEnum.USER_CREATED)
     created_at = Column(DateTime, nullable=True)
 
@@ -45,9 +50,12 @@ class GitHubRepo(Base):
 
     id = Column(BigInteger, primary_key=True)
     node_id = Column(String(255), nullable=True)
-    name = Column(String(255), nullable=True)
     full_name = Column(String(255), nullable=True)
     language = Column(JSON, default=list, nullable=True)
+    star_count = Column(Integer, nullable=True)
+    fork_count = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=datetime.utcnow)
 
 
 class GitHubUserStats(Base):
