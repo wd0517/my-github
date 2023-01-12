@@ -2,6 +2,7 @@ import sys
 import logging
 import argparse
 import environs
+from collections import defaultdict
 
 from my_github.db_session import create_session
 from my_github.models import (
@@ -9,6 +10,7 @@ from my_github.models import (
     GitHubUserDynamicStats
 )
 from my_github.github_api import GitHubRestAPI, GitHubGraphQLAPI, datetime_from_github_time
+from my_github.event_parser import EventParser
 
 logger = logging.getLogger(__name__)
 
@@ -38,17 +40,7 @@ def save_github_events(event_source, raw_events):
     logger.debug(f'saving github events')
     for e in raw_events:
         session.merge(GitHubEvent(
-            id=e['id'],
-            event_type=e['type'],
-            actor_id=e['actor']['id'],
-            actor_login=e['actor']['login'],
-            repo_id=e['repo']['id'],
-            repo_name=e['repo']['name'],
-            payload=e['payload'],
-            public=e['public'],
-            org_id=e['org']['id'] if 'org' in e else None,
-            org_login=e['org']['login'] if 'org' in e else None,
-            created_at=e['created_at'],
+            **EventParser(e).event_dict,
             event_source=event_source,
         ))
     session.commit()
@@ -89,12 +81,50 @@ def _sync_github_events(event_source, github_api_method):
             break
 
 
+def _sync_commit_info_for_push_events():
+    while True:
+        push_events = session.query(
+            GitHubEvent.id,
+            GitHubEvent.repo_id,
+            GitHubEvent.repo_name,
+            GitHubEvent.commit_sha
+        ).where(
+            GitHubEvent.event_type == 'PushEvent',
+            GitHubEvent.node_id == None,
+            GitHubEvent.event_source == EventSourceEnum.USER_CREATED.value,
+        ).all()[:50]
+        if not push_events:
+            break
+        event_ids = []
+        repo_commit_shas = defaultdict(lambda: defaultdict(list))
+        for event_id, repo_id, repo_fullname, commit_sha in push_events:
+            event_ids.append(event_id)
+            repo_owner, repo_name = repo_fullname.split('/')
+            repo_commit_shas[repo_id]['owner'] = repo_owner
+            repo_commit_shas[repo_id]['name'] = repo_name
+            repo_commit_shas[repo_id]['shas'].append(commit_sha)
+
+        for commit in graphql_api.get_commits_by_shas(repo_commit_shas):
+            session.query(GitHubEvent).where(
+                GitHubEvent.event_type == 'PushEvent',
+                GitHubEvent.commit_sha == commit['sha'],
+                GitHubEvent.repo_id == commit['repo_id']
+            ).update({
+                'additions': commit['additions'],
+                'deletions': commit['deletions'],
+                'changed_files': commit['changed_files'],
+                'node_id': commit['node_id']
+            })
+        session.commit()
+
+
 def sync_user_created_events():
     logger.info('🚀 Syncing user created events...')
     _sync_github_events(
         EventSourceEnum.USER_CREATED.value,
         rest_api.get_authenticated_user_created_events,
     )
+    _sync_commit_info_for_push_events()
     logger.info(f'🎉 Syncing user created events done! 🎉')
 
 

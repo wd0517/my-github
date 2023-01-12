@@ -219,6 +219,7 @@ query getCommits($ids: [ID!]!, $first: Int!) {
                 sha_{ s_index }: object(oid: "{ sha }") {{
                     ... on Commit {{
                         id
+                        oid
                         additions
                         deletions
                         changedFilesIfAvailable
@@ -231,4 +232,40 @@ query getCommits($ids: [ID!]!, $first: Int!) {
             }}
             """
         query += '}'
-        data = self.do_request(query=query, variables=None)
+        data = self.do_request(query=query, variables=None)['data']
+        commits = []
+        for repo_index, repo_info in data.items():
+            repo_id = int(repo_index.split('_')[1])
+            if repo_info is None:
+                for sha in commit_shas[repo_id]['shas']:
+                    commits.append({
+                        'repo_id': repo_id,
+                        'node_id': 'NOT_FOUND',
+                        'sha': sha,
+                        'additions': None,
+                        'deletions': None,
+                        'changed_files': None
+                    })
+                continue
+            for commit_index, commit_info in repo_info.items():
+                if commit_info is None:
+                    sha = commit_shas[repo_id]['shas'][int(commit_index.split('_')[1])]
+                    commits.append({
+                        'repo_id': repo_id,
+                        'node_id': 'NOT_FOUND',
+                        'sha': sha,
+                        'additions': None,
+                        'deletions': None,
+                        'changed_files': None
+                    })
+                    continue
+                commits.append({
+                    'repo_id': repo_id,
+                    'node_id': commit_info['id'],
+                    'sha': commit_info['oid'],
+                    'additions': commit_info['additions'],
+                    'deletions': commit_info['deletions'],
+                    'changed_files': commit_info['changedFilesIfAvailable']
+                })
+        print(commits)
+        return commits
