@@ -115,6 +115,7 @@ def sycn_user_stats():
     session.add(GitHubUserStats(
         user_id=user_id,
         user_login=user_login,
+        company=data['company'],
         follower_count=data['followers']['totalCount'],
         following_count=data['following']['totalCount'],
         starred_count=data['starredRepositories']['totalCount'],

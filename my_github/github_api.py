@@ -134,6 +134,7 @@ query {
   viewer {
     databaseId
     login
+    company
     followers {
       totalCount
     }

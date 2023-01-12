@@ -64,6 +64,7 @@ class GitHubUserStats(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(BigInteger, nullable=True)
     user_login = Column(String(255), nullable=True)
+    company = Column(String(255), nullable=True)
     follower_count = Column(Integer, nullable=True)
     following_count = Column(Integer, nullable=True)
     starred_count = Column(
