@@ -3,6 +3,7 @@ import logging
 import argparse
 import environs
 from collections import defaultdict
+from sqlalchemy import sql
 
 from my_github.db_session import create_session
 from my_github.models import (
@@ -116,6 +117,18 @@ def _sync_commit_info_for_push_events():
                 'node_id': commit['node_id']
             })
         session.commit()
+
+    # associate commit with merged pr
+    session.execute(sql.text("""
+        update github_events e1 left join github_events e2
+        on e1.commit_sha = e2.commit_sha and
+            e1.event_type = 'PushEvent' and
+            e2.event_type = 'PullRequestEvent' and
+            e2.action = 'closed'
+        set e1.pr_number = e2.pr_number
+        where e2.id is not null
+    """))
+    session.commit()
 
 
 def sync_user_created_events():
