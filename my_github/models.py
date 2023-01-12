@@ -31,6 +31,7 @@ class GitHubEvent(Base):
     additions = Column(Integer, nullable=True)
     deletions = Column(Integer, nullable=True)
     changed_files = Column(Integer, nullable=True)
+    commit_sha = Column(String(64), nullable=True)
     pr_number = Column(
         String(255), nullable=True,
         doc='In PullRequestEvent, this is the pull request number; '
